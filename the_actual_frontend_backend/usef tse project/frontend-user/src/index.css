@@ -1,0 +1,296 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Light Mode – Silver, Dusty Blue & Champagne Gold Studio */
+    --bg-page: #edf2f6;          /* Soft silver-blue ambient base */
+    --bg-surface-0: #f8fafc;
+    --bg-surface-1: #ffffff;      /* Clean card surface */
+    --bg-surface-2: #dfe3e4;      /* Soft silver (#DFE3E4) */
+    --bg-surface-3: #bfd0d7;      /* Pale blue-grey (#BFD0D7) */
+    --bg-surface-hover: #d3dfe6;
+
+    --border-subtle: rgba(141, 170, 196, 0.28); /* Steel blue subtle */
+    --border-strong: rgba(113, 159, 202, 0.45); /* Sky blue strong */
+    --border-focus: #efbb78;                    /* Champagne gold focus */
+
+    --text-primary: #162330;      /* Deep navy for high contrast readability */
+    --text-secondary: #4a6074;    /* Muted slate blue */
+    --text-muted: #6b8296;
+    --text-dim: #8daac4;          /* Steel blue */
+
+    /* Warm Champagne Gold Accent */
+    --accent-gold: #efbb78;
+    --accent-gold-hover: #e5aa5d;
+    --accent-gold-dim: rgba(239, 187, 120, 0.2);
+    --accent-gold-text: #162330;
+    --accent-gold-glow: rgba(239, 187, 120, 0.4);
+
+    /* Blue Accents */
+    --accent-sky: #719fca;
+    --accent-dusty: #a6bfd1;
+    --accent-steel: #8daac4;
+
+    /* Interactive accents in light mode */
+    --accent-purple: #719fca;
+    --accent-purple-hover: #5d8db8;
+    --accent-purple-dim: rgba(113, 159, 202, 0.15);
+    --accent-purple-glow: rgba(113, 159, 202, 0.3);
+
+    --accent-lime: #efbb78;
+    --accent-lime-hover: #e5aa5d;
+    --accent-lime-dim: rgba(239, 187, 120, 0.2);
+    --accent-lime-text: #162330;
+    --accent-lime-glow: rgba(239, 187, 120, 0.4);
+    --accent-cyan: #8daac4;
+
+    /* Microphone Lighting in Light Mode: subtle dusty-blue & champagne-gold */
+    --mic-glow-1: rgba(113, 159, 202, 0.25);
+    --mic-glow-2: rgba(239, 187, 120, 0.22);
+
+    --shadow-card: 0 4px 20px -2px rgba(22, 35, 48, 0.08);
+    --shadow-popover: 0 10px 25px -3px rgba(22, 35, 48, 0.12);
+
+    --grid-line-color: rgba(141, 170, 196, 0.06);
+    --logo-filter: none;
+  }
+
+  .dark,
+  [data-theme="dark"] {
+    /* Dark Mode – Midnight Navy, Charcoal & Deep Violet Studio */
+    --bg-page: #090a10;
+    --bg-surface-0: #0d0e17;
+    --bg-surface-1: #131422;
+    --bg-surface-2: #1a1c30;
+    --bg-surface-3: #232540;
+    --bg-surface-hover: #2b2e4d;
+    --border-subtle: rgba(168, 85, 247, 0.18);
+    --border-strong: rgba(168, 85, 247, 0.35);
+    --border-focus: #f59e0b;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+
+    /* Warm Champagne Gold Accent */
+    --accent-gold: #f59e0b;
+    --accent-gold-hover: #fbbf24;
+    --accent-gold-dim: rgba(245, 158, 11, 0.15);
+    --accent-gold-text: #090a10;
+    --accent-gold-glow: rgba(245, 158, 11, 0.35);
+
+    /* Rich Purple / Violet Accent */
+    --accent-purple: #a855f7;
+    --accent-purple-hover: #c084fc;
+    --accent-purple-dim: rgba(168, 85, 247, 0.16);
+    --accent-purple-glow: rgba(168, 85, 247, 0.3);
+
+    --accent-lime: #f59e0b;
+    --accent-lime-hover: #fbbf24;
+    --accent-lime-dim: rgba(245, 158, 11, 0.15);
+    --accent-lime-text: #090a10;
+    --accent-lime-glow: rgba(245, 158, 11, 0.35);
+    --accent-cyan: #a855f7;
+
+    /* Microphone Lighting in Dark Mode: subtle purple & champagne-gold */
+    --mic-glow-1: rgba(168, 85, 247, 0.32);
+    --mic-glow-2: rgba(245, 158, 11, 0.28);
+
+    --shadow-card: 0 4px 24px -2px rgba(0, 0, 0, 0.65);
+    --shadow-popover: 0 12px 30px -4px rgba(0, 0, 0, 0.8);
+
+    --grid-line-color: rgba(168, 85, 247, 0.035);
+    --logo-filter: invert(1);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    /* Safe-area insets for modern edge-to-edge mobile screens */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Optimize touch responsiveness and eliminate 300ms tap delay */
+  button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Typography Helpers */
+.font-editorial {
+  font-family: "Playfair Display", Georgia, Cambria, "Times New Roman", serif;
+}
+
+.text-gold-gradient {
+  background: linear-gradient(135deg, #fce09b 0%, var(--accent-gold) 50%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, var(--accent-gold) 0%, #eab308 50%, #d97706 100%);
+  color: var(--accent-gold-text);
+  font-weight: 700;
+  box-shadow: 0 4px 20px -2px var(--accent-gold-glow);
+  transition: all 0.2s ease;
+}
+
+.btn-gold:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 6px 24px -2px var(--accent-gold-glow);
+  transform: translateY(-1px);
+}
+
+/* Studio Technical Grid Pattern */
+.studio-grid-bg {
+  background-image:
+    linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface-0);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Subtle glow animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 8px var(--accent-gold-glow));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 16px var(--accent-gold-glow));
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+/* Microphone subtle hover breath */
+@keyframes micFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-mic-float {
+  animation: micFloat 6s ease-in-out infinite;
+}
+
+/* Ribbon wave background animation */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.5deg);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 8s ease-in-out infinite;
+}
+
+/* Audio scrub range slider styling for touch and desktop */
+input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--accent-gold-glow);
+  transition: transform 0.1s ease;
+}
+@media (pointer: coarse) {
+  input[type="range"]::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+}
+input[type="range"]::-webkit-slider-thumb:hover,
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.25);
+}
+
+/* Modal and drawer transitions */
+@keyframes fadeInSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fadeInSlideDown {
+  animation: fadeInSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fadeInSlideUp {
+  animation: fadeInSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Respect user reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

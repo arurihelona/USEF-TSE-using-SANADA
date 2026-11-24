@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#090a10" id="theme-color-meta" />
+
+    <!-- Mobile App & PWA Capabilities -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="USEF-TSE" />
+    <meta name="application-name" content="USEF-TSE Mobile" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+
+    <title>USEF-TSE Mobile – Target Speaker Extraction</title>
+    <meta
+      name="description"
+      content="Mobile speech separation application: isolate any target speaker from mixed audio."
+    />
+    <script>
+      (function() {
+        try {
+          const stored = localStorage.getItem('usef_tse_theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+          let theme = 'dark';
+          if (stored === 'light' || stored === 'dark') {
+            theme = stored;
+          } else if (prefersLight && !prefersDark) {
+            theme = 'light';
+          }
+          const themeColorMeta = document.getElementById('theme-color-meta');
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            if (themeColorMeta) themeColorMeta.setAttribute('content', '#090a10');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            if (themeColorMeta) themeColorMeta.setAttribute('content', '#edf2f6');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-[var(--bg-page)] text-[var(--text-primary)] antialiased transition-colors duration-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

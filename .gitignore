@@ -68,3 +68,8 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# 9. Preserved Git Backups
+.git_nested_backup/
+**/.git_nested_backup/
+*.bundle

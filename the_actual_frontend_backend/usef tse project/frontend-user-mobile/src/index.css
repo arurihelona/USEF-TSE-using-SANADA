@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Light Mode – Silver, Dusty Blue & Champagne Gold Studio */
+    --bg-page: #edf2f6;          /* Ambient backdrop */
+    --bg-surface-0: #f8fafc;
+    --bg-surface-1: #ffffff;      /* Clean card surface */
+    --bg-surface-2: #dfe3e4;      /* Soft silver (#DFE3E4) */
+    --bg-surface-3: #bfd0d7;      /* Pale blue-grey (#BFD0D7) */
+    --bg-surface-hover: #d3dfe6;
+
+    --border-subtle: rgba(141, 170, 196, 0.28);
+    --border-strong: rgba(113, 159, 202, 0.45);
+    --border-focus: #efbb78;
+
+    --text-primary: #162330;      /* High contrast deep navy */
+    --text-secondary: #4a6074;
+    --text-muted: #6b8296;
+    --text-dim: #8daac4;
+
+    /* Warm Champagne Gold Accent */
+    --accent-gold: #efbb78;
+    --accent-gold-hover: #e5aa5d;
+    --accent-gold-dim: rgba(239, 187, 120, 0.2);
+    --accent-gold-text: #162330;
+    --accent-gold-glow: rgba(239, 187, 120, 0.4);
+
+    /* Blue / Violet Accents */
+    --accent-purple: #719fca;
+    --accent-purple-hover: #5d8db8;
+    --accent-purple-dim: rgba(113, 159, 202, 0.15);
+    --accent-purple-glow: rgba(113, 159, 202, 0.3);
+
+    --shadow-card: 0 4px 16px -2px rgba(22, 35, 48, 0.08);
+    --shadow-floating: 0 10px 30px -4px rgba(22, 35, 48, 0.15);
+    --logo-filter: none;
+  }
+
+  .dark,
+  [data-theme="dark"] {
+    /* Dark Mode – Midnight Navy, Charcoal & Deep Violet Studio */
+    --bg-page: #090a10;
+    --bg-surface-0: #0d0e17;
+    --bg-surface-1: #131422;
+    --bg-surface-2: #1a1c30;
+    --bg-surface-3: #232540;
+    --bg-surface-hover: #2b2e4d;
+
+    --border-subtle: rgba(168, 85, 247, 0.18);
+    --border-strong: rgba(168, 85, 247, 0.35);
+    --border-focus: #f59e0b;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+
+    /* Champagne Gold Accent */
+    --accent-gold: #f59e0b;
+    --accent-gold-hover: #fbbf24;
+    --accent-gold-dim: rgba(245, 158, 11, 0.16);
+    --accent-gold-text: #090a10;
+    --accent-gold-glow: rgba(245, 158, 11, 0.35);
+
+    /* Violet Accent */
+    --accent-purple: #a855f7;
+    --accent-purple-hover: #c084fc;
+    --accent-purple-dim: rgba(168, 85, 247, 0.16);
+    --accent-purple-glow: rgba(168, 85, 247, 0.3);
+
+    --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.65);
+    --shadow-floating: 0 12px 35px -4px rgba(0, 0, 0, 0.8);
+    --logo-filter: invert(1);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Optimize touch responsiveness and eliminate 300ms tap delay */
+  button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Typography Helpers for Mobile Audio Studio */
+.font-editorial {
+  font-family: "Playfair Display", Georgia, Cambria, "Times New Roman", serif;
+}
+
+.text-gold-gradient {
+  background: linear-gradient(135deg, #fce09b 0%, var(--accent-gold) 50%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, var(--accent-gold) 0%, #eab308 50%, #d97706 100%);
+  color: var(--accent-gold-text);
+  font-weight: 700;
+  box-shadow: 0 4px 18px -2px var(--accent-gold-glow);
+  transition: all 0.15s ease;
+}
+
+.btn-gold:hover {
+  filter: brightness(1.05);
+}
+
+.btn-gold:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
+}
+
+/* Custom mobile scrub slider */
+input[type="range"]::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--accent-gold-glow);
+  transition: transform 0.1s ease;
+}
+
+@media (pointer: coarse) {
+  input[type="range"]::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+
+/* Fluid native animations */
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fadeInSlideUp {
+  animation: fadeInSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.18s ease-out forwards;
+}

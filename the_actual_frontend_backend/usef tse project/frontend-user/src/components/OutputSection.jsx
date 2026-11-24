@@ -1,0 +1,187 @@
+import React, { useState } from "react";
+import { Download, RotateCcw, Volume2, CheckCircle2, Clock, SlidersHorizontal } from "lucide-react";
+import AudioWavePlayer from "./AudioWavePlayer";
+
+export default function OutputSection({
+  result,
+  mixedAudioUrl,
+  mixedFile,
+  onReset,
+}) {
+  const [activeTab, setActiveTab] = useState("extracted"); // "extracted" | "comparison"
+
+  if (!result) {
+    return (
+      <div className="w-full bg-[var(--bg-surface-1)] border border-[var(--border-subtle)] rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-[var(--shadow-card)]">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--bg-surface-2)] border border-[var(--border-subtle)] flex items-center justify-center mb-3 text-[var(--text-muted)]">
+          <Volume2 className="w-6 h-6" />
+        </div>
+        <h4 className="text-xs font-sans font-bold tracking-wider uppercase text-[var(--text-primary)] mb-1">
+          Extracted Audio Output
+        </h4>
+        <p className="text-xs text-[var(--text-secondary)] max-w-md font-sans">
+          Upload both audio files and click &ldquo;Extract Speaker&rdquo; to isolate the target voice.
+        </p>
+      </div>
+    );
+  }
+
+  const cleanFilename = "extracted_speaker.wav";
+
+  const handleDownload = () => {
+    if (!result.download_url) return;
+    const link = document.createElement("a");
+    link.href = result.download_url;
+    link.download = cleanFilename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="w-full bg-[var(--bg-surface-1)] border-2 border-[var(--accent-gold)]/60 rounded-2xl p-6 sm:p-7 shadow-[0_4px_30px_-4px_var(--accent-gold-glow)] relative overflow-hidden transition-all duration-300">
+      {/* Top accent border line in champagne gold */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--accent-gold)]" />
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[var(--accent-gold-dim)] text-[var(--accent-gold)] border border-[var(--accent-gold)]/40 shadow-sm shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-sans font-bold text-[var(--text-primary)] tracking-tight">
+              Target Speaker Isolated
+            </h3>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              The target speaker voice has been extracted and is ready to listen or download.
+            </p>
+          </div>
+        </div>
+
+        {/* Real Measured Metrics (Only displayed when returned by backend) */}
+        <div className="flex items-center gap-2 flex-wrap font-mono text-xs">
+          {result.processing_time !== undefined && result.processing_time !== null && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-surface-2)] border border-[var(--border-subtle)] text-[var(--text-primary)]" title="Processing Time">
+              <Clock className="w-3.5 h-3.5 text-[var(--accent-gold)]" />
+              <span>{result.processing_time}s</span>
+            </div>
+          )}
+
+          {result.extracted_duration !== undefined && result.extracted_duration !== null && (
+            <div className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface-2)] border border-[var(--border-subtle)] text-[var(--text-primary)]" title="Extracted Audio Duration">
+              <span>{result.extracted_duration}s duration</span>
+            </div>
+          )}
+
+          {result.sample_rate !== undefined && result.sample_rate !== null && (
+            <div className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface-2)] border border-[var(--border-subtle)] text-[var(--text-secondary)]" title="Sample Rate">
+              <span>{result.sample_rate} Hz</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Switcher: Isolated Speaker Player vs A/B Comparison */}
+      {mixedAudioUrl && (
+        <div className="flex items-center gap-1.5 sm:gap-2 mb-5 p-1 rounded-xl bg-[var(--bg-surface-2)] border border-[var(--border-subtle)] w-full sm:w-fit text-xs font-sans overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab("extracted")}
+            className={`flex-1 sm:flex-none px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-lg font-bold transition-all cursor-pointer text-center min-h-[38px] flex items-center justify-center ${
+              activeTab === "extracted"
+                ? "btn-gold shadow-sm"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            Extracted Voice
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("comparison")}
+            className={`flex-1 sm:flex-none px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center min-h-[38px] ${
+              activeTab === "comparison"
+                ? "btn-gold shadow-sm"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Before &amp; After Comparison</span>
+            <span className="sm:hidden">Compare</span>
+          </button>
+        </div>
+      )}
+
+      {/* Main Tab Content */}
+      {activeTab === "extracted" || !mixedAudioUrl ? (
+        /* Single Extracted Track Player */
+        <div className="p-4 sm:p-5 rounded-xl bg-[var(--bg-surface-2)]/60 border border-[var(--border-subtle)] mb-5">
+          <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)] mb-3">
+            <span className="font-bold text-[var(--accent-gold)]">Isolated Speaker Waveform</span>
+            <span className="truncate max-w-[200px]">{cleanFilename}</span>
+          </div>
+          <AudioWavePlayer
+            audioUrl={result.output_url}
+            mode="extracted"
+          />
+        </div>
+      ) : (
+        /* A/B Comparison View */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          {/* Track 1: Original Mixture */}
+          <div className="p-4 rounded-xl bg-[var(--bg-surface-2)] border border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)] mb-3">
+              <span className="font-bold text-[var(--text-primary)]">1. Original Conversation</span>
+              <span className="text-[10px] text-[var(--text-muted)]">Multiple Speakers</span>
+            </div>
+            <AudioWavePlayer
+              audioUrl={mixedAudioUrl}
+              mode="mixture"
+            />
+          </div>
+
+          {/* Track 2: Extracted Target Speaker */}
+          <div className="p-4 rounded-xl bg-[var(--accent-gold-dim)] border border-[var(--accent-gold)]/40 shadow-sm">
+            <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)] mb-3">
+              <span className="font-bold text-[var(--accent-gold)]">2. Isolated Speaker</span>
+              <span className="text-[10px] text-[var(--accent-gold)] font-bold">Clean Output</span>
+            </div>
+            <AudioWavePlayer
+              audioUrl={result.output_url}
+              mode="extracted"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Controls Row: File details, Extract Another, Download */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t border-[var(--border-subtle)]">
+        <div className="text-[11px] sm:text-xs font-mono text-[var(--text-secondary)] flex items-center gap-2">
+          <span className="text-[var(--text-primary)] font-semibold truncate max-w-[200px] sm:max-w-xs">
+            {cleanFilename}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-sans font-medium bg-[var(--bg-surface-2)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[44px] active:scale-95"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Extract Another</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full text-xs font-sans font-bold border-2 border-[var(--accent-gold)] text-[var(--text-primary)] hover:bg-[var(--accent-gold)] hover:text-[#090a10] shadow-md hover:shadow-[0_0_20px_var(--accent-gold-glow)] transition-all cursor-pointer min-h-[44px] active:scale-95"
+          >
+            <Download className="w-4 h-4 text-[var(--accent-gold)] group-hover:text-inherit" />
+            <span>Download</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
