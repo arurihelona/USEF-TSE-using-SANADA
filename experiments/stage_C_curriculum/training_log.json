@@ -1,0 +1,36 @@
+{
+  "initial_val": {
+    "val_loss": 7.007358493904273,
+    "val_sisnr_db": -7.007358493904273,
+    "val_sisnri_db": 6.229658970673879
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_loss": 2.713,
+      "val_loss": 1.8537,
+      "val_sisnr_db": -1.85,
+      "val_sisnri_db": 10.97,
+      "duration_sec": 23662.1,
+      "lr": 2e-05
+    },
+    {
+      "epoch": 2,
+      "train_loss": 1.4636,
+      "val_loss": 0.5976,
+      "val_sisnr_db": -0.6,
+      "val_sisnri_db": 12.15,
+      "duration_sec": 20481.7,
+      "lr": 2e-05
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.6057,
+      "val_loss": 0.1902,
+      "val_sisnr_db": -0.19,
+      "val_sisnri_db": 12.56,
+      "duration_sec": 20371.9,
+      "lr": 2e-05
+    }
+  ]
+}

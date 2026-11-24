@@ -1,0 +1,99 @@
+{
+  "initial_val": {
+    "val_loss": -3.008823234140873,
+    "val_sisnr_db": 3.008823234140873,
+    "val_sisnri_db": 6.170771108865738
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_loss": -12.0081,
+      "val_loss": -14.4994,
+      "val_sisnr_db": 14.5,
+      "val_sisnri_db": 16.36,
+      "duration_sec": 3856.0,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 2,
+      "train_loss": -14.9182,
+      "val_loss": -15.1494,
+      "val_sisnr_db": 15.15,
+      "val_sisnri_db": 16.64,
+      "duration_sec": 2670.8,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 3,
+      "train_loss": -15.5438,
+      "val_loss": -15.6502,
+      "val_sisnr_db": 15.65,
+      "val_sisnri_db": 16.86,
+      "duration_sec": 2634.9,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 4,
+      "train_loss": -15.9485,
+      "val_loss": -15.9386,
+      "val_sisnr_db": 15.94,
+      "val_sisnri_db": 16.95,
+      "duration_sec": 2648.3,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 5,
+      "train_loss": -16.4243,
+      "val_loss": -16.2626,
+      "val_sisnr_db": 16.26,
+      "val_sisnri_db": 17.1,
+      "duration_sec": 2643.0,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 6,
+      "train_loss": -16.5575,
+      "val_loss": -16.4537,
+      "val_sisnr_db": 16.45,
+      "val_sisnri_db": 17.19,
+      "duration_sec": 2673.7,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 7,
+      "train_loss": -16.9916,
+      "val_loss": -16.6895,
+      "val_sisnr_db": 16.69,
+      "val_sisnri_db": 17.33,
+      "duration_sec": 2711.3,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 8,
+      "train_loss": -16.8749,
+      "val_loss": -16.7133,
+      "val_sisnr_db": 16.71,
+      "val_sisnri_db": 17.33,
+      "duration_sec": 2669.6,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 9,
+      "train_loss": -17.1346,
+      "val_loss": -16.861,
+      "val_sisnr_db": 16.86,
+      "val_sisnri_db": 17.43,
+      "duration_sec": 2642.7,
+      "lr": 5e-05
+    },
+    {
+      "epoch": 10,
+      "train_loss": -17.3785,
+      "val_loss": -16.9301,
+      "val_sisnr_db": 16.93,
+      "val_sisnri_db": 17.49,
+      "duration_sec": 2699.3,
+      "lr": 5e-05
+    }
+  ]
+}

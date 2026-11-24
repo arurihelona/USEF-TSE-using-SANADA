@@ -1,0 +1,4 @@
+mix_type,targets,input_sisnr,baseline_sisnr,baseline_sisnri,stageC_sisnr,stageC_sisnri,stageC_gain
+2,200,0.003,2.17,2.167,13.971,13.968,11.801
+4,400,-6.641,-3.09,3.551,7.706,14.347,10.797
+9,900,-15.775,-14.983,0.792,-5.786,9.99,9.197
