@@ -8,6 +8,7 @@ import numpy as np
 import soundfile as sf
 import torch
 import torch.nn as nn
+import torchaudio
 from scipy import signal
 
 # Add original-USEF-TSE to sys.path to access model architectures without modifying original code
@@ -93,6 +94,54 @@ class CleaniSTFT(nn.Module):
         )
 
 
+def apply_energy_vad(
+    wav: torch.Tensor,
+    sr: int = 8000,
+    frame_len_ms: float = 30.0,
+    hop_len_ms: float = 10.0,
+    threshold_db: float = -30.0,
+    min_speech_ms: float = 200.0,
+    eps: float = 1e-8
+) -> torch.Tensor:
+    """
+    Energy-based Voice Activity Detection (VAD) matching the training implementation (src/dataset.py).
+    Removes silent or low-energy background frames from reference enrollment audio to prevent attention
+    diffusion across silent frames during TFGridNet cross-attention.
+    Falls back gracefully to the original reference if silence detection is inconclusive.
+    """
+    if wav.ndim > 1:
+        wav = wav.squeeze(0)
+    L = wav.shape[-1]
+    frame_len = int(sr * frame_len_ms / 1000.0)
+    hop_len = int(sr * hop_len_ms / 1000.0)
+    if L < frame_len:
+        return wav
+
+    frames = wav.unfold(dimension=-1, size=frame_len, step=hop_len)
+    frame_energy = torch.mean(frames ** 2, dim=-1) + eps
+    frame_db = 10.0 * torch.log10(frame_energy)
+    max_db = torch.max(frame_db)
+
+    # If completely below -60 dB, it is digital silence; return as-is
+    if max_db < -60.0:
+        return wav
+
+    active_mask = (frame_db >= (max_db + threshold_db))
+    min_active_frames = int(min_speech_ms / hop_len_ms)
+    if active_mask.sum() < min_active_frames:
+        return wav
+
+    active_sample_mask = torch.zeros(L, dtype=torch.bool, device=wav.device)
+    active_indices = torch.nonzero(active_mask).squeeze(-1)
+    for idx in active_indices:
+        st = idx.item() * hop_len
+        en = min(st + frame_len, L)
+        active_sample_mask[st:en] = True
+
+    cleaned = wav[active_sample_mask]
+    return cleaned if len(cleaned) > 0 else wav
+
+
 class USEFExtractor:
     """
     Universal Speaker Embedding Free Target Speaker Extraction Engine.
@@ -131,7 +180,8 @@ class USEFExtractor:
     =============================================================================
     """
 
-    TARGET_SR = 8000  # Model operates at 8kHz
+    TARGET_SR = 8000  # Model internal forward pass operates at 8kHz
+    OUTPUT_SR = 16000  # Output WAV reconstructed at 16kHz matching training evaluation
 
     def __init__(self, checkpoint_path: str = None, async_init: bool = False):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -143,6 +193,19 @@ class USEFExtractor:
         self._init_lock = threading.Lock()
         self._init_start_time = None
         self.init_duration = None
+
+        # Polyphase anti-aliasing sinc resamplers matching src/inference.py
+        self.resample_16k_to_8k = torchaudio.transforms.Resample(
+            orig_freq=16000,
+            new_freq=8000,
+            resampling_method="sinc_interp_hann"
+        ).to(self.device)
+
+        self.resample_8k_to_16k = torchaudio.transforms.Resample(
+            orig_freq=8000,
+            new_freq=16000,
+            resampling_method="sinc_interp_hann"
+        ).to(self.device)
 
         if async_init:
             self._thread = threading.Thread(target=self._initialize_model, daemon=True)
@@ -324,10 +387,11 @@ class USEFExtractor:
                 self.status_detail = f"Error loading checkpoint: {str(e)}"
                 print(f"[MODEL] [ERROR] {self.status_detail}")
 
-    def load_and_preprocess_audio(self, file_path: str) -> dict:
+    def load_and_preprocess_audio(self, file_path: str, is_reference: bool = False) -> dict:
         """
-        Loads audio file, measures durations, records original sample rate,
-        converts to mono, and resamples to TARGET_SR (8000 Hz).
+        Loads audio file, measures durations, converts to mono,
+        and resamples to TARGET_SR (8000 Hz) using bandlimited sinc interpolation.
+        If is_reference=True, applies energy-based VAD to strip silent frames.
         """
         t0 = time.perf_counter()
         data, original_sr = sf.read(file_path, dtype="float32")
@@ -338,31 +402,55 @@ class USEFExtractor:
             data = np.mean(data, axis=1)
 
         duration = len(data) / original_sr
+        orig_len_samples = len(data)
 
-        # Resample to 8kHz if needed
+        # Convert to float32 torch tensor [1, T]
+        tensor = torch.from_numpy(data).unsqueeze(0).to(self.device)
+
+        # Resample to 8kHz (model native domain) using polyphase sinc interpolation
         t_resample_start = time.perf_counter()
-        if original_sr != self.TARGET_SR:
-            num_target_samples = int(round(len(data) * self.TARGET_SR / original_sr))
-            data = signal.resample(data, num_target_samples)
+        if original_sr == 16000:
+            tensor_8k = self.resample_16k_to_8k(tensor)
+        elif original_sr != self.TARGET_SR:
+            resampler = torchaudio.transforms.Resample(
+                orig_freq=original_sr,
+                new_freq=self.TARGET_SR,
+                resampling_method="sinc_interp_hann"
+            ).to(self.device)
+            tensor_8k = resampler(tensor)
+        else:
+            tensor_8k = tensor
         t_resample = time.perf_counter() - t_resample_start
 
+        # Energy-based VAD for enrollment audio (matching training/eval src/dataset.py)
+        if is_reference:
+            cleaned_8k = apply_energy_vad(tensor_8k, sr=self.TARGET_SR)
+            if cleaned_8k.dim() == 1:
+                cleaned_8k = cleaned_8k.unsqueeze(0)
+            if cleaned_8k.shape[-1] > 0:
+                tensor_8k = cleaned_8k
+
         # Avoid zero variance
-        if np.std(data) < 1e-7:
-            data = data + 1e-6 * np.random.randn(*data.shape).astype(np.float32)
+        if tensor_8k.std() < 1e-7:
+            tensor_8k = tensor_8k + 1e-6 * torch.randn_like(tensor_8k)
 
         return {
-            "data": data.astype(np.float32),
+            "tensor_8k": tensor_8k,
             "duration": duration,
             "original_sr": original_sr,
-            "preprocessed_sr": self.TARGET_SR,
+            "orig_len_samples": orig_len_samples,
             "load_duration": round(t_read, 3),
             "resample_duration": round(t_resample, 3),
         }
 
     def extract(self, mix_path: str, aux_path: str, output_path: str) -> dict:
         """
-        Runs USEF-TSE target speaker extraction given mixture and reference audio.
-        Reuses the preloaded in-memory model (does NOT reload weights).
+        Runs USEF-TSE target speaker extraction matching training/evaluation pipeline.
+        - Preprocesses mixture and reference to 8 kHz using sinc anti-aliasing.
+        - Applies energy-based VAD to reference audio to remove silent/unvoiced frames.
+        - Executes TFGridNet forward pass in native 8 kHz domain.
+        - Reconstructs output to 16 kHz using bandlimited sinc interpolation (matching src/inference.py).
+        - Saves 16-bit PCM WAV at 16,000 Hz.
         """
         if self.model_status != "ready" or self.model is None:
             raise RuntimeError(f"USEF-TSE model is not ready: {self.status_detail}")
@@ -371,14 +459,14 @@ class USEFExtractor:
         print("[EXTRACTION] Request received")
         total_start_time = time.perf_counter()
 
-        # 1. Preprocess mixture audio
+        # 1. Preprocess mixture audio (sinc downsampling to 8 kHz)
         t_mix_start = time.perf_counter()
-        mix_info = self.load_and_preprocess_audio(mix_path)
+        mix_info = self.load_and_preprocess_audio(mix_path, is_reference=False)
         t_mix_duration = time.perf_counter() - t_mix_start
 
-        # 2. Preprocess reference audio
+        # 2. Preprocess reference audio (sinc downsampling + energy VAD)
         t_ref_start = time.perf_counter()
-        ref_info = self.load_and_preprocess_audio(aux_path)
+        ref_info = self.load_and_preprocess_audio(aux_path, is_reference=True)
         t_ref_duration = time.perf_counter() - t_ref_start
 
         total_preprocess_time = round(t_mix_duration + t_ref_duration, 3)
@@ -388,41 +476,49 @@ class USEFExtractor:
         print(f"[AUDIO] Model inference sample rate: {self.TARGET_SR} Hz")
         print(f"[PREPROCESS] Duration: {total_preprocess_time:.2f} seconds")
 
-        mix_audio = mix_info["data"]
-        aux_audio = ref_info["data"]
+        mix_tensor_8k = mix_info["tensor_8k"]
+        ref_tensor_8k = ref_info["tensor_8k"]
 
-        # Convert to torch tensor [1, T]
-        mix_tensor = torch.from_numpy(mix_audio).unsqueeze(0).to(self.device)
-        aux_tensor = torch.from_numpy(aux_audio).unsqueeze(0).to(self.device)
+        # Expected 16 kHz sample count for length alignment
+        target_len_16k = (
+            mix_info["orig_len_samples"] if mix_info["original_sr"] == self.OUTPUT_SR
+            else int(round(mix_info["orig_len_samples"] * self.OUTPUT_SR / mix_info["original_sr"]))
+        )
 
-        # 3. Model Inference (reusing loaded model)
+        # 3. Model Inference in 8 kHz domain (reusing preloaded model)
         t_inf_start = time.perf_counter()
         with torch.no_grad():
-            est_source = self.model(mix_tensor, aux_tensor)
-            est_np = est_source.squeeze().cpu().numpy()
+            est_8k = self.model(mix_tensor_8k, ref_tensor_8k)
+            # 4. High-fidelity upsampling back to 16 kHz (matching src/inference.py)
+            est_16k = self.resample_8k_to_16k(est_8k)
+
+            # Align length to original mixture length
+            if est_16k.shape[-1] > target_len_16k:
+                est_16k = est_16k[:, :target_len_16k]
+            elif est_16k.shape[-1] < target_len_16k:
+                est_16k = torch.nn.functional.pad(est_16k, (0, target_len_16k - est_16k.shape[-1]))
+
+            est_np = est_16k.squeeze().cpu().numpy()
+
         inference_time = round(time.perf_counter() - t_inf_start, 2)
         print(f"[INFERENCE] Duration: {inference_time:.2f} seconds")
 
-        # Handle size matching and normalization
-        min_len = min(len(est_np), len(mix_audio))
-        est_np = est_np[:min_len]
-
-        # Prevent clipping while preserving dynamics
+        # Prevent clipping while preserving dynamic range
         peak = np.max(np.abs(est_np))
         if peak > 0.99:
             est_np = est_np / (peak + 1e-5) * 0.95
 
-        # 4. Save output WAV file at TARGET_SR (8000 Hz)
+        # 5. Save output WAV file at OUTPUT_SR (16000 Hz)
         t_save_start = time.perf_counter()
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        sf.write(output_path, est_np, self.TARGET_SR, subtype="PCM_16")
+        sf.write(output_path, est_np, self.OUTPUT_SR, subtype="PCM_16")
         save_time = round(time.perf_counter() - t_save_start, 3)
 
-        print(f"[AUDIO] Extracted output sample rate: {self.TARGET_SR} Hz")
+        print(f"[AUDIO] Extracted output sample rate: {self.OUTPUT_SR} Hz")
         print(f"[SAVE] Duration: {save_time:.2f} seconds")
 
         total_elapsed_time = round(time.perf_counter() - total_start_time, 2)
-        extracted_duration = round(len(est_np) / self.TARGET_SR, 2)
+        extracted_duration = round(len(est_np) / self.OUTPUT_SR, 2)
         print(f"[EXTRACTION] Total duration: {total_elapsed_time:.2f} seconds")
         print("=" * 50 + "\n")
 
@@ -436,7 +532,7 @@ class USEFExtractor:
             "inference_time": inference_time,
             "preprocess_time": total_preprocess_time,
             "save_time": save_time,
-            "sample_rate": self.TARGET_SR,
+            "sample_rate": self.OUTPUT_SR,
             "model_name": self.model_name,
             "device": str(self.device),
         }

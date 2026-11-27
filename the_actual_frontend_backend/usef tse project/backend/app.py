@@ -1,10 +1,14 @@
 import os
 import shutil
+import threading
+import time
 import uuid
 from pathlib import Path
-from fastapi import FastAPI, File, UploadFile, HTTPException, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from inference import USEFExtractor
 
 app = FastAPI(
@@ -13,11 +17,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Enable CORS for frontend dev server
+# Enable CORS (configure CORS_ORIGINS as comma-separated origins in production)
+_raw_cors = os.getenv("CORS_ORIGINS", "*").strip()
+CORS_ORIGINS = [o.strip() for o in _raw_cors.split(",") if o.strip()] if _raw_cors else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=(CORS_ORIGINS != ["*"]),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -28,14 +34,67 @@ SAMPLES_DIR = BASE_DIR / "samples"
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+TEMP_FILE_TTL_SECONDS = max(60, int(os.getenv("TEMP_FILE_TTL_SECONDS", "1800")))
+
+_default_dist = BASE_DIR.parent / "frontend-user" / "dist"
+FRONTEND_DIST_DIR = Path(os.getenv("FRONTEND_DIST_DIR", str(_default_dist))).resolve()
+
+_active_audio_lock = threading.Lock()
+_active_audio_counts: dict[str, int] = {}
+
+
+def _release_active_audio(filename: str) -> None:
+    with _active_audio_lock:
+        count = _active_audio_counts.get(filename, 0)
+        if count <= 1:
+            _active_audio_counts.pop(filename, None)
+        else:
+            _active_audio_counts[filename] = count - 1
+
+
+def cleanup_expired_temp_files() -> int:
+    """
+    Remove expired temporary audio files without deleting files currently being served.
+    Synchronized with get_audio() via _active_audio_lock (single-process safe).
+    """
+    now = time.time()
+    removed = 0
+    for pattern in ("extracted_speaker_*.wav", "upload_mix_*", "upload_ref_*"):
+        for path in TEMP_DIR.glob(pattern):
+            with _active_audio_lock:
+                if _active_audio_counts.get(path.name, 0) > 0:
+                    continue
+                try:
+                    if not path.is_file():
+                        continue
+                    age = now - path.stat().st_mtime
+                    if age >= TEMP_FILE_TTL_SECONDS:
+                        path.unlink()
+                        removed += 1
+                except FileNotFoundError:
+                    pass
+                except Exception as exc:
+                    print(f"[CLEANUP] Failed to remove {path.name}: {exc}")
+    return removed
+
+
 # Initialize the inference engine in background thread so server starts listening immediately
 extractor = USEFExtractor(async_init=True)
 
 
 @app.on_event("startup")
 async def on_startup():
+    removed = cleanup_expired_temp_files()
     print("[STARTUP] Backend started")
-    print("[STARTUP] Listening on http://127.0.0.1:8000")
+    print(f"[STARTUP] Configured bind: http://{HOST}:{PORT}")
+    if removed:
+        print(f"[STARTUP] Cleaned up {removed} expired temporary audio file(s)")
+    if (FRONTEND_DIST_DIR / "index.html").is_file():
+        print(f"[STARTUP] Serving static frontend from {FRONTEND_DIST_DIR}")
+    else:
+        print("[STARTUP] No production frontend build found; running API-only mode")
 
 
 @app.get("/health")
@@ -111,6 +170,8 @@ def list_samples():
 @app.get("/api/samples/{filename}")
 def get_sample_audio(filename: str):
     """Serves a demo sample audio file."""
+    if Path(filename).name != filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
     file_path = SAMPLES_DIR / filename
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Sample audio file not found")
@@ -119,11 +180,24 @@ def get_sample_audio(filename: str):
 
 @app.get("/api/audio/{filename}")
 def get_audio(filename: str):
-    """Serves extracted or uploaded audio files."""
+    """Serves extracted or uploaded audio files while protecting active transfers from cleanup."""
+    if Path(filename).name != filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
     file_path = TEMP_DIR / filename
-    if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail="Audio file not found or expired")
-    return FileResponse(file_path, media_type="audio/wav", filename=filename)
+    with _active_audio_lock:
+        if not file_path.exists() or not file_path.is_file():
+            raise HTTPException(status_code=404, detail="Audio file not found or expired")
+        _active_audio_counts[filename] = _active_audio_counts.get(filename, 0) + 1
+    try:
+        return FileResponse(
+            file_path,
+            media_type="audio/wav",
+            filename=filename,
+            background=BackgroundTask(_release_active_audio, filename),
+        )
+    except Exception:
+        _release_active_audio(filename)
+        raise
 
 
 @app.post("/api/extract")
@@ -142,19 +216,25 @@ async def extract_target_speaker(
         )
 
     # Basic format / extension validation
-    allowed_extensions = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
-    mix_ext = Path(mixed_audio.filename).suffix.lower()
-    ref_ext = Path(reference_audio.filename).suffix.lower()
+    allowed_extensions = {".wav", ".mp3", ".flac", ".ogg"}
+    mix_ext = Path(mixed_audio.filename or "").suffix.lower()
+    ref_ext = Path(reference_audio.filename or "").suffix.lower()
+
+    if mix_ext == ".m4a" or ref_ext == ".m4a":
+        raise HTTPException(
+            status_code=400,
+            detail="M4A format is not supported because the server audio decoder cannot decode M4A/AAC. Please upload WAV, MP3, FLAC, or OGG.",
+        )
 
     if mix_ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported format for mixed audio: '{mix_ext}'. Please upload a WAV or standard audio file.",
+            detail=f"Unsupported format for mixed audio: '{mix_ext}'. Please upload WAV, MP3, FLAC, or OGG.",
         )
     if ref_ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported format for reference audio: '{ref_ext}'. Please upload a WAV or standard audio file.",
+            detail=f"Unsupported format for reference audio: '{ref_ext}'. Please upload WAV, MP3, FLAC, or OGG.",
         )
 
     # Save uploaded files into temp directory with UUID
@@ -205,7 +285,7 @@ async def extract_target_speaker(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
     finally:
-        # Cleanup uploaded raw temp files, keep extracted output
+        # Cleanup uploaded raw temp files and any expired extracted outputs
         try:
             if mix_temp_path.exists():
                 mix_temp_path.unlink()
@@ -213,8 +293,30 @@ async def extract_target_speaker(
                 ref_temp_path.unlink()
         except Exception:
             pass
+        cleanup_expired_temp_files()
+
+
+if (FRONTEND_DIST_DIR / "index.html").is_file():
+    _assets_dir = FRONTEND_DIST_DIR / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="frontend-assets")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        """Serve built frontend-user static files and SPA fallback without shadowing /api routes."""
+        if full_path.startswith("api/") or full_path == "api":
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        candidate = (FRONTEND_DIST_DIR / full_path).resolve()
+        if (
+            full_path
+            and candidate.is_relative_to(FRONTEND_DIST_DIR)
+            and candidate.is_file()
+        ):
+            return FileResponse(candidate)
+        return FileResponse(FRONTEND_DIST_DIR / "index.html")
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # Single worker (workers=1) is required because active-download tracking is process-local.
+    uvicorn.run(app, host=HOST, port=PORT, workers=1)

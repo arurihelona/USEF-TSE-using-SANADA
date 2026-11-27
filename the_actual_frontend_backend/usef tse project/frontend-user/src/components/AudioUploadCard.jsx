@@ -20,17 +20,22 @@ export default function AudioUploadCard({
   const [isDragging, setIsDragging] = useState(false);
   const [formatError, setFormatError] = useState(null);
 
-  const allowedExtensions = [".wav", ".mp3", ".flac", ".ogg", ".m4a"];
+  const allowedExtensions = [".wav", ".mp3", ".flac", ".ogg"];
 
   const validateAndSelect = (selectedFile) => {
     if (!selectedFile) return;
     setFormatError(null);
 
     const name = selectedFile.name.toLowerCase();
+    if (name.endsWith(".m4a")) {
+      setFormatError("M4A is not supported by the server audio decoder. Please convert to WAV, MP3, FLAC, or OGG.");
+      return;
+    }
+
     const isValid = allowedExtensions.some((ext) => name.endsWith(ext));
 
     if (!isValid) {
-      setFormatError("Unsupported audio format. Please upload WAV, MP3, FLAC, OGG, or M4A.");
+      setFormatError("Unsupported audio format. Please upload WAV, MP3, FLAC, or OGG.");
       return;
     }
 
@@ -93,7 +98,7 @@ export default function AudioUploadCard({
         ref={fileInputRef}
         type="file"
         id={id}
-        accept=".wav,.mp3,.flac,.ogg,.m4a,audio/*"
+        accept=".wav,.mp3,.flac,.ogg,audio/*"
         onChange={handleInputChange}
         className="hidden"
         disabled={isExtracting}
@@ -179,7 +184,7 @@ export default function AudioUploadCard({
             Click to upload or drag &amp; drop
           </p>
           <p className="text-[11px] text-[var(--text-muted)] mt-1 font-sans">
-            WAV, MP3, FLAC, OGG, or M4A
+            WAV, MP3, FLAC, or OGG
           </p>
 
           {hint && (

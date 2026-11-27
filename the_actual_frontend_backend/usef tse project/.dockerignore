@@ -1,0 +1,57 @@
+# Node / Python build & cache artifacts
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/*.pyo
+
+# Secrets, environment files, keys, and certificates
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+**/*credentials*
+**/*secret*
+
+# Logs, docs, IDE, and root scripts
+*.log
+*.md
+.vscode
+docs
+scratch
+run_app*.py
+
+# Git metadata, nested repos, and backups
+.git
+.git_nested_backup
+original_usef_tse_git_backup
+nested_repo_history.bundle
+frontend_neon_brutalist_backup
+frontend_src_neon_brutalist_backup
+frontend_src_original_backup
+
+# Unused frontend variants
+frontend/
+frontend-user-mobile/
+
+# Unused original-USEF-TSE training/eval/checkpoint directories (keep models/)
+original-USEF-TSE/chkpt
+original-USEF-TSE/config
+original-USEF-TSE/dataset
+original-USEF-TSE/trainer
+original-USEF-TSE/utils
+original-USEF-TSE/*.py
+original-USEF-TSE/*.sh
+
+# Backend temp files, backups, evaluation outputs, and unused baseline checkpoint
+backend/temp/*
+!backend/temp/.gitkeep
+backend/**/*.orig
+backend/inference.py.original_backup
+backend/create_samples.py
+backend/checkpoints/usef_tfgridnet_wsj02mix.pth.tar
+backend/samples/eval_ab_tests
+backend/samples/final_release_extracted_sample.wav
+backend/samples/verified_extracted_output.wav

@@ -8,6 +8,7 @@ import OutputSection from "./components/OutputSection";
 import Footer from "./components/Footer";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import { ThemeProvider } from "./context/ThemeContext";
+import { apiUrl } from "./config/api";
 
 function MainApp() {
   const [mixedFile, setMixedFile] = useState(null);
@@ -28,7 +29,7 @@ function MainApp() {
   // Check backend model status on mount
   const checkStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/status");
+      const res = await fetch(apiUrl("/api/status"));
       if (res.ok) {
         const data = await res.json();
         setModelStatus(data);
@@ -42,7 +43,7 @@ function MainApp() {
       console.warn("Backend status check failed:", err);
       setModelStatus({
         status: "error",
-        detail: "Cannot connect to backend server. Please verify backend is running on port 8000.",
+        detail: "Cannot connect to backend server. Please verify the API URL or backend status.",
       });
     }
   }, []);
@@ -133,7 +134,7 @@ function MainApp() {
       let refFilename = "speaker_a_ref.wav";
 
       try {
-        const samplesRes = await fetch("/api/samples");
+        const samplesRes = await fetch(apiUrl("/api/samples"));
         if (samplesRes.ok) {
           const samplesData = await samplesRes.json();
           if (samplesData.mixed?.url) mixUrl = samplesData.mixed.url;
@@ -141,15 +142,15 @@ function MainApp() {
           if (samplesData.reference?.url) refUrl = samplesData.reference.url;
           else if (samplesData.speaker_a?.url) refUrl = samplesData.speaker_a.url;
           if (samplesData.reference?.name) refFilename = samplesData.reference.name;
-          else if (samplesData.speaker_a?.name) refFilename = samplesData.reference.name;
+          else if (samplesData.speaker_a?.name) refFilename = samplesData.speaker_a.name;
         }
       } catch (metaErr) {
         console.warn("Falling back to direct demo endpoints:", metaErr);
       }
 
       const [mixRes, refRes] = await Promise.all([
-        fetch(mixUrl),
-        fetch(refUrl),
+        fetch(apiUrl(mixUrl)),
+        fetch(apiUrl(refUrl)),
       ]);
 
       if (!mixRes.ok) {
@@ -192,7 +193,7 @@ function MainApp() {
     formData.append("reference_audio", refFile);
 
     try {
-      const response = await fetch("/api/extract", {
+      const response = await fetch(apiUrl("/api/extract"), {
         method: "POST",
         body: formData,
       });
@@ -203,7 +204,11 @@ function MainApp() {
         throw new Error(data.detail || "Speaker extraction failed on server.");
       }
 
-      setExtractionResult(data);
+      setExtractionResult({
+        ...data,
+        output_url: apiUrl(data.output_url),
+        download_url: apiUrl(data.download_url),
+      });
 
       // Smooth scroll to output
       setTimeout(() => {
